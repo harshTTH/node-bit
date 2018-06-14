@@ -11,7 +11,7 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
         console.log('Invalid file path !');
     else{
         let decodedData = decodeFile(data);
-        let readableData = getReadableData(decodedData)
+        let readableData = getReadableData(decodedData);
         if(!decodedData)
             console.log("Invalid File !");
         else{
@@ -30,16 +30,19 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
 
             rl.question('Do you want to download the above torrent (y/n)',answer=>{
                 if(answer.match(/y(es)?$/i)){
-                    process.stdout.write('Connecting to tracker');
+                    console.log('Connecting to tracker');
                     loading = setInterval(()=>process.stdout.write('.'),500);
 
-                    connectTracker().then(()=>{
-
+                    connectTracker(readableData).then(()=>{
+                        clearInterval(loading);
+                        console.log('Connected To Tracker Successully!');
                     })
-                    .catch(()=>{
-
+                    .catch((e)=>{
+                        clearInterval(loading);
+                        console.log('Unable to connect to tracker !',e);
+                        rl.close();
                     })
-                    
+
                 }else{
                     rl.close();
                 }
