@@ -9,6 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "bencode": "^2.0.0",
     "yargs": "^11.0.0"
   }
 }
