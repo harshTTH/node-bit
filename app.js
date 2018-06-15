@@ -3,44 +3,41 @@ const readline = require('readline');
 const {getFilepath} = require('./getFilepath');
 const {decodeFile,getReadableData} = require('./decodeFile');
 const {connectTracker} = require('./connectTracker');
+const {tracker} = require('./tracker');
+const {rl,startLoading,stopLoading,isLoading} = require('./utils');
 const filePath = getFilepath();
-let loading;
 
 const fileCon = fs.readFile(filePath,(err,data)=>{
     if(err)
-        console.log('Invalid file path !');
+        rl.write('\nInvalid file path !\n');
     else{
         let decodedData = decodeFile(data);
         let readableData = getReadableData(decodedData);
+
         if(!decodedData)
-            console.log("Invalid File !");
+            rl.write("\nInvalid File !\n");
         else{
-            console.log(`\n       ---Torrent Information---\n
+            rl.write(`\n       ---Torrent Information---\n
     Name          : ${readableData.name}
     Length        : ${readableData.length}
     Creation Date : ${readableData['creation date']}
-        `)
+        \n`)
 
-            const rl = readline.createInterface({
-                input:process.stdin,
-                output:process.stdout,
-                terminal:true,
-                prompt:"node_bit",
-            });
-
-            rl.question('Do you want to download the above torrent (y/n)',answer=>{
+            rl.question('Do you want to download the above torrent (y/n): ',answer=>{
                 if(answer.match(/y(es)?$/i)){
-                    console.log('Connecting to tracker');
-                    loading = setInterval(()=>process.stdout.write('.'),500);
-
-                    connectTracker(readableData).then(()=>{
-                        clearInterval(loading);
-                        console.log('Connected To Tracker Successully!');
+                    rl.write('Connecting to tracker');
+                    //initailize connect request to tracker
+                    startLoading(); //Start Loading Animation
+                    connectTracker(readableData).then((message)=>{
+                        //initialize socket's event handlers 
+                        tracker(message,decodedData);
+                        //rl.pause();
                     })
                     .catch((e)=>{
-                        clearInterval(loading);
-                        console.log('Unable to connect to tracker !',e);
+                        rl.write('\nUnable to connect to tracker ! ');
+                        if(isLoading())stopLoading();
                         rl.close();
+                        process.exit(1);
                     })
 
                 }else{
@@ -49,11 +46,22 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
             })
 
             rl.on('SIGINT',()=>{
-                clearInterval(loading);
-                rl.question('Are you sure you want to exit ?',(answer)=>{
+                let resume = false;
+                if(isLoading()){
+                    stopLoading();
+                    resume = true;
+                }
+
+                rl.write('\n');
+                rl.question('Are you sure you want to exit ? : ',(answer)=>{
                     if(answer.match(/y(es)?$/i)){
                         rl.close();
-                    }else rl.resume();
+                        process.exit(1);
+                    }else if(answer){
+                        rl.resume();
+                        rl.write('\nResuming ');
+                        if(resume)startLoading();
+                    }
                 })
             })
         } 

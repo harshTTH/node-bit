@@ -2,9 +2,16 @@ const bencode = require('bencode');
 
 const decodeFile = (data) => {
     try{
-        return bencode.decode(data);
+        let decodedData = bencode.decode(data);
+
+        if(!decodedData.info.length){
+            decodedData.info.length = decodedData.info.files.reduce((prvs,next)=>{
+                return prvs.length + next.length;
+            })
+        }
+        return decodedData;
     }catch(error){
-        console.log(error);
+        console.error(error);
         return null;
     }
 }
@@ -18,10 +25,7 @@ const getReadableData = (decodedData)=> {
 
         'creation date':decodedData['creation date'] && new Date(decodedData['creation date']).toLocaleDateString(),
 
-        length:(decodedData.info.length)
-        ? fixMagnitude(decodedData.info.length)
-        : fixMagnitude(decodedData.info.files.reduce(
-            (prvs,next)=>prvs.length   +next.length))
+        length:fixMagnitude(decodedData.info.length)
     };
 }
 

@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "bencode": "^2.0.0",
+    "bignum": "^0.12.5",
     "yargs": "^11.0.0"
   }
 }
