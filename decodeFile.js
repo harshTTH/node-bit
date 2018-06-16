@@ -5,10 +5,10 @@ const decodeFile = (data) => {
         let decodedData = bencode.decode(data);
 
         if(!decodedData.info.length){
-            decodedData.info.length = decodedData.info.files.reduce((prvs,next)=>{
-                return prvs.length + next.length;
+            decodedData.length = decodedData.info.files.map(f=>f.length).reduce((prvs,next)=>{
+                return prvs + next;
             })
-        }
+        }else decodedData.length = decodedData.info.length;
         return decodedData;
     }catch(error){
         console.error(error);
@@ -25,7 +25,7 @@ const getReadableData = (decodedData)=> {
 
         'creation date':decodedData['creation date'] && new Date(decodedData['creation date']).toLocaleDateString(),
 
-        length:fixMagnitude(decodedData.info.length)
+        length: fixMagnitude(decodedData.length)
     };
 }
 

@@ -65,6 +65,7 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
                 rl.question('Are you sure you want to exit ? : ',(answer)=>{
                     if(answer.match(/y(es)?$/i)){
                         rl.close();
+                        socket.close();
                         process.exit(1);
                     }else if(answer){
                         rl.resume();

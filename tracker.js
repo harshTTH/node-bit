@@ -44,7 +44,7 @@ const tracker = (message,decodedData) => {
             }
         }else if(response.length >= 20){
             if(isLoading())stopLoading();
-
+            
             parsedResponse = parseAnnounceResp(response);
             if(parsedResponse.transaction_id === message.readUInt32BE(12)){
                 console.log(parsedResponse);
@@ -78,8 +78,9 @@ const parseAnnounceResp = (response) => {
     return{
         action:response.readUInt32BE(0),
         transaction_id:response.readUInt32BE(4),
-        leechers:response.readUInt32BE(8),
-        seeders:response.readUInt32BE(12),
+        interval:response.readUInt32BE(8),
+        leechers:response.readUInt32BE(12),
+        seeders:response.readUInt32BE(16),
         peers:divideIP(response.slice(20),6).map(add=>{
             return({
                 ip:add.slice(0,4).join('.'),

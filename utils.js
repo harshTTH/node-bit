@@ -14,7 +14,7 @@ const udpSend = (message,socket,trackUrl)=> {
     let transaction_id = message.readUInt32BE(12);
     addRequests(transaction_id);
     let reqIndex = getRequest(transaction_id);
-    if(reqIndex !== -1 && requests[reqIndex].n < 8){
+    if(reqIndex !== -1 && requests[reqIndex].n < 8 && !trackUrl.match(/^http(s)?/)){
         return new Promise((resolve,reject)=>{
             let URL = url.parse(trackUrl);
             socket.send(message,0,message.length,URL.port,URL.hostname,(err)=>{
@@ -23,7 +23,7 @@ const udpSend = (message,socket,trackUrl)=> {
             });
         })
     }else{
-        return new Promise((resolve,reject)=>reject('Timeout'))
+        return new Promise((resolve,reject)=>reject('Something went wrong'))
     }
 }
 

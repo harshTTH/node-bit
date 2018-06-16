@@ -4,13 +4,25 @@ const {udpSend} = require('./utils');
 const socket = dgram.createSocket('udp4');
 
 const connectTracker = (decodedData,message) => {
+    let announceUrl = selectUDPProtocol(decodedData);
+    console.log(`\nTracker url: ${announceUrl}`);
     return new Promise((resolve,reject)=>{
         if(!message)message = createConnectStruct();
-        udpSend(message,socket,decodedData.announce)
+        udpSend(message,socket,announceUrl)
         .then((message)=>{
             resolve(message);
         },(err)=>reject(err));
     });
+}
+
+const selectUDPProtocol = (decodedData) => {
+    if(decodedData.announce.match(/^http(s)?/)){
+        let announceList = decodedData['announce-list'];
+        return announceList.find((announceUrl)=>(
+            announceUrl.match(/^udp/)
+        ))
+    }
+    return decodedData.announce;
 }
 
 const createConnectStruct = () => {
