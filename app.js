@@ -4,7 +4,7 @@ const {getFilepath} = require('./getFilepath');
 const {decodeFile,getReadableData} = require('./decodeFile');
 const {connectTracker} = require('./connectTracker');
 const {tracker} = require('./tracker');
-const {rl,startLoading,stopLoading,isLoading} = require('./utils');
+const {rl,startLoading,stopLoading,isLoading,startTimer} = require('./utils');
 const filePath = getFilepath();
 
 const fileCon = fs.readFile(filePath,(err,data)=>{
@@ -28,18 +28,27 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
                     rl.write('Connecting to tracker');
                     //initailize connect request to tracker
                     startLoading(); //Start Loading Animation
-                    connectTracker(readableData).then((message)=>{
+                    
+                    const initSocketEvents = (message)=>{
+                        startTimer(message.readUInt32BE(12),()=>{
+                            rl.write('\nResponse timeout');
+                            connectTracker(readableData,message)
+                            .then(initSocketEvents,handleError)
+                        })
                         //initialize socket's event handlers 
                         tracker(message,decodedData);
-                        //rl.pause();
-                    })
-                    .catch((e)=>{
+                    }
+
+                    const handleError = (e)=>{
                         rl.write('\nUnable to connect to tracker ! ');
+                        console.log(e);
                         if(isLoading())stopLoading();
                         rl.close();
                         process.exit(1);
-                    })
+                    }
 
+                    connectTracker(readableData)
+                    .then(initSocketEvents,handleError)
                 }else{
                     rl.close();
                 }

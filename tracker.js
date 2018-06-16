@@ -1,12 +1,12 @@
 const dgram = require('dgram');
 const {socket} = require('./connectTracker');
 const {announceTracker} = require('./announceTracker');
-const {stopLoading,isLoading,startLoading,rl}  = require('./utils');
+const {stopLoading,isLoading,startLoading,rl,stopTimer,startTimer}  = require('./utils');
+const {removeRequests} = require('./requests');
 
 const tracker = (message,decodedData) => {
     socket.on('message',(response)=>{
         let parsedResponse;
-
         if(response.length === 16){
             if(isLoading())stopLoading();
 
@@ -18,16 +18,26 @@ const tracker = (message,decodedData) => {
                 rl.write('Sending Announce request');
                 startLoading();
                 //announce request
-                announceTracker(parsedResponse.connection_id,decodedData)
-                .then((response)=>{
+
+                const handleAnnounce = (response)=>{
+                    startTimer(response.readUInt32BE(12),()=>{
+                        rl.write('\nResponse Timeout Retrying');
+                        announceTracker(parsedResponse.connection_id,decodedData,response)
+                        .then(handleAnnounce)
+                        .catch(handleFailure)
+                    })
                     message = response;
-                    if(isLoading())stopLoading();
                     rl.write('\nAnnounce Request sent to tracker\n');
-                })
-                .catch((error)=>{
+                };
+
+                const handleFailure = (e)=>{
                     if(isLoading())stopLoading();
                     console.error('\nAnnounce request failed',e);
-                })
+                };
+
+                announceTracker(parsedResponse.connection_id,decodedData)
+                .then(handleAnnounce)
+                .catch(handleFailure)
 
             }else{
                 return rl.write('Invalid Connection, Exiting');
@@ -43,6 +53,8 @@ const tracker = (message,decodedData) => {
                 return rl.write('Invalid Connection, Exiting');
             }
         }
+        stopTimer(parsedResponse.transaction_id);
+        removeRequests(parsedResponse.transaction_id);
     });
 };
 

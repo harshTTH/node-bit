@@ -4,8 +4,8 @@ const {udpSend} = require('./utils');
 const {socket} = require('./connectTracker');
 const bignum = require('bignum')
 
-const announceTracker = (connection_id,decodedData) => {
-    let annReq = createAnnounceReq(connection_id,decodedData);
+const announceTracker = (connection_id,decodedData,annReq) => {
+    if(!annReq)annReq = createAnnounceReq(connection_id,decodedData);
 
     return new Promise((resolve,reject)=>{
         udpSend(annReq,socket,decodedData.announce.toString()).then((response)=>{

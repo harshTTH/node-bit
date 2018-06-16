@@ -3,9 +3,9 @@ const dgram = require('dgram');
 const {udpSend} = require('./utils');
 const socket = dgram.createSocket('udp4');
 
-const connectTracker = (decodedData) => {
+const connectTracker = (decodedData,message) => {
     return new Promise((resolve,reject)=>{
-        let message = createConnectStruct();
+        if(!message)message = createConnectStruct();
         udpSend(message,socket,decodedData.announce)
         .then((message)=>{
             resolve(message);
