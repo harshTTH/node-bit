@@ -1,5 +1,9 @@
+const dgram = require('dgram');
 const url = require('url');
+const bencode = require('bencode');
+const socket = dgram.createSocket('udp4');
 const readline = require('readline');
+const crypto = require('crypto');
 const {addRequests,requests,getRequest} = require('./requests');
 
 let loading,timeOutId = [];
@@ -10,11 +14,11 @@ const rl = readline.createInterface({
     terminal:true
 });
 
-const udpSend = (message,socket,trackUrl)=> {
+const udpSend = (message,trackUrl)=> {
     let transaction_id = message.readUInt32BE(12);
     addRequests(transaction_id);
     let reqIndex = getRequest(transaction_id);
-    if(reqIndex !== -1 && requests[reqIndex].n < 8 && !trackUrl.match(/^http(s)?/)){
+    if(reqIndex !== -1 && requests[reqIndex].n < 8){
         return new Promise((resolve,reject)=>{
             let URL = url.parse(trackUrl);
             socket.send(message,0,message.length,URL.port,URL.hostname,(err)=>{
@@ -54,6 +58,22 @@ const stopTimer = (transaction_id) => {
     }
 }
 
+const createInfoHash = (decodedData) => {
+    let encodedInfo = bencode.encode(decodedData.info);
+    let hash = crypto.createHash('SHA1');
+    hash.update(encodedInfo);
+    return hash.digest();
+}
+
+const getPeerId = (bytes) => {
+    if(bytes){
+        let id = crypto.randomBytes(20);
+        Buffer.from('-BC0001-').copy(id,0);
+        return id;
+    }
+    return(`BC0001${process.pid}${new Date().getTime()}`.substr(0,20));
+}
+
 module.exports = {
     udpSend,
     rl,
@@ -61,5 +81,8 @@ module.exports = {
     stopLoading,
     startTimer,
     stopTimer,
-    isLoading
+    isLoading,
+    socket,
+    createInfoHash,
+    getPeerId
 }

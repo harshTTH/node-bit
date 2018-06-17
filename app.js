@@ -1,13 +1,33 @@
 const fs = require('fs');
-const readline = require('readline');
 const {getFilepath} = require('./getFilepath');
 const {decodeFile,getReadableData} = require('./decodeFile');
-const {connectTracker} = require('./connectTracker');
-const {tracker} = require('./tracker');
-const {rl,startLoading,stopLoading,isLoading,startTimer} = require('./utils');
+const {udpTracker,initResendEventTimer}  = require('./udpTracker');
+const {httpTracker}  = require("./httpTracker");
+const {responseListener} = require('./responseListener');
+const {rl,startLoading,stopLoading,isLoading,socket} = require('./utils');
 const filePath = getFilepath();
 
-const fileCon = fs.readFile(filePath,(err,data)=>{
+const handleReqFailure = (error)=>{
+    rl.write('\nUnable to connect to tracker ! ');
+    if(isLoading())stopLoading();
+    rl.close();
+    process.exit(1);
+};
+
+const parseHTTPResponse = (response) => {
+    let peers = response.peers;
+    let peersIp = [];
+    for(let i = 0; i < peers.length; i+=6){
+        peersIp.push({
+            ip:peers.slice(i,i+4).join('.'),
+            port:peers.readUInt16BE(i+4)
+        })    
+    }
+    response.peers = peersIp;
+}
+
+
+fs.readFile(filePath,(err,data)=>{
     if(err)
         rl.write('\nInvalid file path !\n');
     else{
@@ -25,30 +45,45 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
 
             rl.question('Do you want to download the above torrent (y/n): ',answer=>{
                 if(answer.match(/y(es)?$/i)){
-                    rl.write('Connecting to tracker');
+                    let url = readableData.announce;
+                    
+                    if(url.match(/^http(s)?/)){
+                        /**HTTP tracker */
+
+                        httpTracker(url,decodedData)
+                        .then(response=>{
+                            if(isLoading())stopLoading();
+                            rl.write('\n')
+                            parseHTTPResponse(response);
+                            console.log(response);
+                        })
+                        .catch(handleReqFailure)
+
+                    }else if(url.match(/^udp/)){
+                        /**UDP tracker */
+                        
+                        udpTracker(url)
+                        .then((message)=>{
+                            initResendEventTimer(message);
+                            responseListener(message,decodedData).then((response)=>{
+                                rl.write('\nTracker Responded:\n\nTorrent Status: \n')
+                                console.log(`Seeders : ${response.seeders}`);
+                                console.log(`Leechers: ${response.leechers}`);
+                                console.log(`Peers   : ${response.peers && response.peers.length}`);
+                                rl.close();
+                            }).catch((err)=>{
+                                rl.write(err);
+                            })
+                        })
+                        .catch(handleReqFailure)    
+                    }
+                    
+
+                    //Synchronous work
+                    rl.write('\nConnecting to tracker');
                     //initailize connect request to tracker
                     startLoading(); //Start Loading Animation
-                    
-                    const initSocketEvents = (message)=>{
-                        startTimer(message.readUInt32BE(12),()=>{
-                            rl.write('\nResponse timeout');
-                            connectTracker(readableData,message)
-                            .then(initSocketEvents,handleError)
-                        })
-                        //initialize socket's event handlers 
-                        tracker(message,decodedData);
-                    }
 
-                    const handleError = (e)=>{
-                        rl.write('\nUnable to connect to tracker ! ');
-                        console.log(e);
-                        if(isLoading())stopLoading();
-                        rl.close();
-                        process.exit(1);
-                    }
-
-                    connectTracker(readableData)
-                    .then(initSocketEvents,handleError)
                 }else{
                     rl.close();
                 }
@@ -66,7 +101,8 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
                     if(answer.match(/y(es)?$/i)){
                         rl.close();
                         socket.close();
-                        process.exit(1);
+                        //console.log(process._getActiveHandles());
+                        //process.exit(1);
                     }else if(answer){
                         rl.resume();
                         rl.write('\nResuming ');
@@ -77,3 +113,4 @@ const fileCon = fs.readFile(filePath,(err,data)=>{
         } 
     }
 })
+

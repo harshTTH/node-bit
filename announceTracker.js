@@ -1,15 +1,12 @@
 const crypto = require('crypto');
-const bencode = require('bencode');
-const {udpSend} = require('./utils');
-const {socket} = require('./connectTracker');
+const {udpSend,createInfoHash,getPeerId} = require('./utils');
 const bignum = require('bignum')
 
 const announceTracker = (connection_id,decodedData,annReq) => {
     let url = decodedData.announce.toString();
-    console.log(`\nAnnounce request sent to: ${url}`);
     if(!annReq)annReq = createAnnounceReq(connection_id,decodedData);
     return new Promise((resolve,reject)=>{
-        udpSend(annReq,socket,url).then((response)=>{
+        udpSend(annReq,url).then((response)=>{
             resolve(response);
         })
         .catch((error)=>{
@@ -22,7 +19,7 @@ const createAnnounceReq = (connection_id,decodedData,port=6884) => {
     let buff = Buffer.allocUnsafe(98);
     let infoHash = createInfoHash(decodedData);
     //console.log(`\nInfo Hash :  ${infoHash}\n`);
-    let peer_id = getPeerId();
+    let peer_id = getPeerId(1);
 
     //connection_id
     connection_id.copy(buff,0);
@@ -66,19 +63,6 @@ const createAnnounceReq = (connection_id,decodedData,port=6884) => {
     return buff;
 }
 
-const createInfoHash = (decodedData) => {
-    let encodedInfo = bencode.encode(decodedData.info);
-    let hash = crypto.createHash('SHA1');
-    hash.update(encodedInfo);
-    return hash.digest();
-}
-
-const getPeerId = () => {
-    let id = crypto.randomBytes(20);
-    Buffer.from('-BC0001-').copy(id,0);
-    return id;
-}
-
 module.exports = {
-    announceTracker
+    announceTracker,
 }
