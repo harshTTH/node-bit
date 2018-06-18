@@ -4,28 +4,17 @@ const {decodeFile,getReadableData} = require('./decodeFile');
 const {udpTracker,initResendEventTimer}  = require('./udpTracker');
 const {httpTracker}  = require("./httpTracker");
 const {responseListener} = require('./responseListener');
-const {rl,startLoading,stopLoading,isLoading,socket} = require('./utils');
+const {rl,startLoading,stopLoading,isLoading,socket,getWorkingTracker} = require('./utils');
 const filePath = getFilepath();
 
 const handleReqFailure = (error)=>{
+    console.log(error)
     rl.write('\nUnable to connect to tracker ! ');
     if(isLoading())stopLoading();
     rl.close();
     process.exit(1);
+
 };
-
-const parseHTTPResponse = (response) => {
-    let peers = response.peers;
-    let peersIp = [];
-    for(let i = 0; i < peers.length; i+=6){
-        peersIp.push({
-            ip:peers.slice(i,i+4).join('.'),
-            port:peers.readUInt16BE(i+4)
-        })    
-    }
-    response.peers = peersIp;
-}
-
 
 fs.readFile(filePath,(err,data)=>{
     if(err)
@@ -37,47 +26,46 @@ fs.readFile(filePath,(err,data)=>{
         if(!decodedData)
             rl.write("\nInvalid File !\n");
         else{
-            rl.write(`\n       ---Torrent Information---\n
-    Name          : ${readableData.name}
-    Length        : ${readableData.length}
-    Creation Date : ${readableData['creation date']}
-        \n`)
+            rl.write('\n       ---Torrent Information---\n');
+            rl.write(`Name          : ${readableData.name}\n`);
+            rl.write(`Length        : ${readableData.length}\n`);
+            rl.write(`Creation Date : ${readableData['creation date']}\n\n`)
 
             rl.question('Do you want to download the above torrent (y/n): ',answer=>{
                 if(answer.match(/y(es)?$/i)){
-                    let url = readableData.announce;
-                    
-                    if(url.match(/^http(s)?/)){
-                        /**HTTP tracker */
 
-                        httpTracker(url,decodedData)
-                        .then(response=>{
-                            if(isLoading())stopLoading();
-                            rl.write('\n')
-                            parseHTTPResponse(response);
-                            console.log(response);
-                        })
-                        .catch(handleReqFailure)
-
-                    }else if(url.match(/^udp/)){
-                        /**UDP tracker */
-                        
-                        udpTracker(url)
-                        .then((message)=>{
-                            initResendEventTimer(message);
-                            responseListener(message,decodedData).then((response)=>{
-                                rl.write('\nTracker Responded:\n\nTorrent Status: \n')
-                                console.log(`Seeders : ${response.seeders}`);
-                                console.log(`Leechers: ${response.leechers}`);
-                                console.log(`Peers   : ${response.peers && response.peers.length}`);
-                                rl.close();
-                            }).catch((err)=>{
-                                rl.write(err);
+                    getWorkingTracker(readableData)
+                    .then(url=>{
+                        if(url.match(/^http(s)?/)){
+                            /**HTTP tracker */
+    
+                            httpTracker(url,decodedData)
+                            .then(response=>{
+                                if(isLoading())stopLoading();
+                                rl.write('\n')
+                                console.log(response);
                             })
-                        })
-                        .catch(handleReqFailure)    
-                    }
-                    
+                            .catch(handleReqFailure)
+    
+                        }else if(url.match(/^udp/)){
+                            /**UDP tracker */
+                            
+                            udpTracker(url)
+                            .then((message)=>{
+                                initResendEventTimer(url,message,decodedData);
+                                responseListener(message,decodedData,url).then((response)=>{
+                                    rl.write('\nTracker Responded:\n\nTorrent Status: \n')
+                                    console.log(`Seeders : ${response.seeders}`);
+                                    console.log(`Leechers: ${response.leechers}`);
+                                    console.log(`Peers   : ${response.peers && response.peers.length}`);
+                                    rl.close();
+                                }).catch((err)=>{
+                                    console.log(err);
+                                })
+                            })
+                            .catch(handleReqFailure)    
+                        }
+                    })
 
                     //Synchronous work
                     rl.write('\nConnecting to tracker');

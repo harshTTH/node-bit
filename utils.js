@@ -4,6 +4,7 @@ const bencode = require('bencode');
 const socket = dgram.createSocket('udp4');
 const readline = require('readline');
 const crypto = require('crypto');
+const net = require('net');
 const {addRequests,requests,getRequest} = require('./requests');
 
 let loading,timeOutId = [];
@@ -71,7 +72,69 @@ const getPeerId = (bytes) => {
         Buffer.from('-BC0001-').copy(id,0);
         return id;
     }
-    return(`BC0001${process.pid}${new Date().getTime()}`.substr(0,20));
+    return(`-BC0001-${process.pid}${new Date().getTime()}`.substr(0,20));
+}
+
+async function getWorkingTracker(torrent){
+    let trackers = torrent['announce-list'];
+    let checkedTracker = [];
+    
+    if(trackers){
+        while(true){
+            let index;
+            do{
+                index = Math.floor(Math.random()*trackers.length);
+            }while(checkedTracker.indexOf(index) !== -1 || checkedTracker.length === trackers.length);
+    
+            if(checkedTracker.length === trackers.length){
+                return torrent.announce;
+            }
+    
+            checkedTracker.push(index);
+            let tracker = trackers[index];
+            let trackerObj = url.parse(tracker);
+    
+            if(trackerObj.protocol === 'http:'){
+                const socket = new net.Socket();
+                let status = await new Promise((resolve)=>{
+                    socket.connect(trackerObj.port||80,trackerObj.hostname,()=>{
+                        resolve(true);
+                    })
+                    socket.on('error',()=>{
+                        resolve(false);
+                    })
+                    socket.setTimeout(3000,()=>{
+                        socket.end();
+                        resolve(false);
+                    })
+                })
+                if(status && tracker !== 'http://tracker.opentrackr.org/announce')return tracker;
+    
+            }
+            else if(trackerObj.protocol === 'udp:'){    
+                let message = Buffer.allocUnsafe(16);
+                message.writeInt32BE(0x417,0);
+                message.writeInt32BE(0x27101980,4);
+                message.writeInt32BE(0,8);
+                crypto.randomFillSync(message,12,4);
+            
+                let res = await new Promise((resolve)=>{
+                    socket.send(message,0,message.length,trackerObj.port,trackerObj.hostname,(err)=>{
+                        if(err)resolve(false);
+                    });
+                    socket.on('message',(response)=>{
+                        resolve(true)
+                    })
+                    setTimeout(()=>resolve(false),5000);
+                });
+    
+                if(res){
+                    return tracker;
+                }
+            }
+
+        }
+    }else return torrent.announce;
 }
 
 module.exports = {
@@ -84,5 +147,6 @@ module.exports = {
     isLoading,
     socket,
     createInfoHash,
-    getPeerId
+    getPeerId,
+    getWorkingTracker
 }
