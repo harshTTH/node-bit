@@ -2,8 +2,7 @@ const crypto = require('crypto');
 const {udpSend,createInfoHash,getPeerId} = require('./utils');
 const bignum = require('bignum')
 
-const announceTracker = (connection_id,decodedData,annReq) => {
-    let url = decodedData.announce.toString();
+const announceTracker = (connection_id,decodedData,url,annReq) => {
     if(!annReq)annReq = createAnnounceReq(connection_id,decodedData);
     return new Promise((resolve,reject)=>{
         udpSend(annReq,url).then((response)=>{

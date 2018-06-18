@@ -2,14 +2,13 @@ const {announceTracker} = require('./announceTracker');
 const {stopLoading,isLoading,startLoading,rl,stopTimer,startTimer,socket}  = require('./utils');
 const {removeRequests} = require('./requests');
 
-const responseListener = (message,decodedData) => {
+const responseListener = (message,decodedData,url) => {
     
     return new Promise((resolve)=>{
         socket.on('message',(response)=>{
             let parsedResponse;
             if(response.length === 16){
                 parsedResponse = parseConnectResp(response);
-    
                 //check for transaction_id
                 if(validateConnection(parsedResponse,message)){
                     rl.write('\nConnection Established with tracker\n');
@@ -20,7 +19,7 @@ const responseListener = (message,decodedData) => {
                     const handleAnnounce = (response)=>{
                         startTimer(response.readUInt32BE(12),()=>{
                             rl.write('\nResponse Timeout Retrying');
-                            announceTracker(parsedResponse.connection_id,decodedData,response)
+                            announceTracker(parsedResponse.connection_id,decodedData,url,response)
                             .then(handleAnnounce)
                             .catch(handleFailure)
                         })
@@ -30,9 +29,10 @@ const responseListener = (message,decodedData) => {
                     const handleFailure = (e)=>{
                         if(isLoading())stopLoading();
                         console.error('\nAnnounce request failed');
+                        console.log(e);
                     };
 
-                    announceTracker(parsedResponse.connection_id,decodedData)
+                    announceTracker(parsedResponse.connection_id,decodedData,url)
                     .then(handleAnnounce)
                     .catch(handleFailure)
     
