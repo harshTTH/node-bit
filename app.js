@@ -52,7 +52,7 @@ fs.readFile(filePath,(err,data)=>{
 
                                 //connecting peers
                                 
-                                setupConnect(response.peers,decodedData);
+                                setupConnect(response.peers);
                                 
                             })
                             .catch(handleReqFailure)
@@ -71,7 +71,7 @@ fs.readFile(filePath,(err,data)=>{
 
                                     //connect peers
 
-                                    setupConnect(response.peers,decodedData);
+                                    setupConnect(response.peers);
 
                                 }).catch((err)=>{
                                     console.log(err);

@@ -1,52 +1,66 @@
 const net = require('net');
-const {rl} = require('./utils');
+const {rl,createInfoHash,getPeerId} = require('./utils');
 let connectedCount = 0;
+let message;
 
-const setupConnect = (peers,trackerRequestParams) => {
+const setupConnect = (peers) => {
     if(peers.length > 0){
-        peers.forEach((peer)=>connectPeer(perr,decodedData))
+        peers.forEach(connectPeer)
     }
-    rl.write('Connected Peers: \033[s'+`${connectedCount}`);
-    //console.log('\nhello');
 }
 
 const connectPeer = (peer) => {
-    const socket = net.Socket();
+    const socket = new net.Socket();
     
     socket.connect(peer.port,peer.ip,()=>{
-        connectedCount++;
-        updateDisplay(connectedCount);
+        sendHandshake(socket);
     });
     
-    socket.on('error',()=>{})
+    socket.on('error',(err)=>{})
     
     socket.on('end',()=>{
-        connectedCount--;
-        updateDisplay(connectedCount);
+        if(connectedCount !== 0){
+            connectedCount--;
+            rl.write(`Connected Peers: ${connectedCount}\n`);
+        }
     })
-    
-    socket.on('data',data=>{
-        console.log(`Data: ${data}`)
+
+    socket.on('data',(data)=>{
+       //if(data.length === data.readUInt8(0) + 49){
+           //if(data.slice(1,20).toString() === 'BitTorrent protocol'){
+                connectedCount++;
+                rl.write(`Connected Peers: ${connectedCount}\n`);
+                console.log(data.length);
+           //}
+       //}else {
+           //console.log(data.toString());
+       //}
     })
 }
 
-const updateDisplay = (connectedCount) => {
-    rl.write('\033[u'+`${connectedCount}`);
-
-}
 
 const sendHandshake = (socket) => {
-    socket.write()
+    let message = generateHandshakeMsg();
+    socket.write(message);
 }
 
 const generateHandshakeMsg = () => {
-    let pstr = 'BitTorrent protocol';
-    let buff = Buffer.allocUnsafe(49+pstr.length);
-
-    buff.writeUInt8(pstr.length,0);
-    buff.write(pstr,1,pstr.length);
-    buff.writeUInt32BE(0,pstr.length);
-    buff.writeUInt32BE(0,pstr.length+4);
+    if(!message){
+        let pstr = 'BitTorrent protocol';
+        let buff = Buffer.allocUnsafe(49+pstr.length);
+        let infoHash = createInfoHash();
+        let peerId = getPeerId();
+    
+        buff.writeUInt8(pstr.length,0);
+        buff.write(pstr,1,pstr.length);
+        buff.writeUInt32BE(0,pstr.length+1);
+        buff.writeUInt32BE(0,pstr.length+5);
+        infoHash.copy(buff,pstr.length+9);
+        peerId.copy(buff,pstr.length+9+infoHash.length);
+        
+        message = buff;
+        return message;        
+    }return message;
 }
 
 module.exports = {

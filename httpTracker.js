@@ -54,7 +54,7 @@ const parseHTTPResponse = (response) => {
 
 const createGetReq = (url,decodedData,port) => {
     let infoHash = escape(createInfoHash(decodedData).toString('binary'));
-    let peerId = escape(getPeerId(0));
+    let peerId = escape(getPeerId().toString());
 
     return(`${url}?info_hash=${infoHash}&peer_id=${peerId}&port=${port}&uploaded=0&downloaded=0&left=${decodedData.length}&compact=1&numwant=200&event=started&key=${peerId.slice(14)}`);
 }

@@ -6,6 +6,7 @@ const readline = require('readline');
 const crypto = require('crypto');
 const net = require('net');
 const {addRequests,requests,getRequest} = require('./requests');
+let infoHash,peerId;
 
 let loading,timeOutId = [];
 const LOADING_CHANGE_TIME = 500;
@@ -60,19 +61,29 @@ const stopTimer = (transaction_id) => {
 }
 
 const createInfoHash = (decodedData) => {
-    let encodedInfo = bencode.encode(decodedData.info);
-    let hash = crypto.createHash('SHA1');
-    hash.update(encodedInfo);
-    return hash.digest();
+    if(!infoHash){
+        let encodedInfo = bencode.encode(decodedData.info);
+        let hash = crypto.createHash('SHA1');
+        hash.update(encodedInfo);
+        infoHash = hash.digest();
+        return infoHash;
+    }return infoHash;
 }
 
-const getPeerId = (bytes) => {
-    if(bytes){
-        let id = crypto.randomBytes(20);
-        Buffer.from('-BC0001-').copy(id,0);
-        return id;
-    }
-    return(`-BC0001-${process.pid}${new Date().getTime()}`.substr(0,20));
+const getPeerId = () => {
+    if(!peerId){
+        let id = '-BC0001-',
+        pid = process.pid.toString(),
+        time = new Date().getTime().toString();
+        
+        let buff = Buffer.alloc(20);
+        buff.write(id,0,id.length);
+        buff.write(pid,id.length,pid.length);
+        buff.write(time,pid.length);
+
+        peerId = buff;
+        return peerId;
+    }return peerId;
 }
 
 async function getWorkingTracker(torrent){
