@@ -148,5 +148,5 @@ module.exports = {
     socket,
     createInfoHash,
     getPeerId,
-    getWorkingTracker
+    getWorkingTracker,
 }

@@ -5,6 +5,7 @@ const {udpTracker,initResendEventTimer}  = require('./udpTracker');
 const {httpTracker}  = require("./httpTracker");
 const {responseListener} = require('./responseListener');
 const {rl,startLoading,stopLoading,isLoading,socket,getWorkingTracker} = require('./utils');
+const {setupConnect} = require('./tcpPeers');
 const filePath = getFilepath();
 
 const handleReqFailure = (error)=>{
@@ -22,6 +23,7 @@ fs.readFile(filePath,(err,data)=>{
     else{
         let decodedData = decodeFile(data);
         let readableData = getReadableData(decodedData);
+
 
         if(!decodedData)
             rl.write("\nInvalid File !\n");
@@ -43,7 +45,15 @@ fs.readFile(filePath,(err,data)=>{
                             .then(response=>{
                                 if(isLoading())stopLoading();
                                 rl.write('\n')
-                                console.log(response);
+                                rl.write('\nTracker Responded:\n\nTorrent Status: \n')
+                                console.log(`Seeders : ${response.complete}`);
+                                console.log(`Leechers: ${response.incomplete}`);
+                                console.log(`Peers   : ${response.peers && response.peers.length}`);
+
+                                //connecting peers
+                                
+                                setupConnect(response.peers,decodedData);
+                                
                             })
                             .catch(handleReqFailure)
     
@@ -58,7 +68,11 @@ fs.readFile(filePath,(err,data)=>{
                                     console.log(`Seeders : ${response.seeders}`);
                                     console.log(`Leechers: ${response.leechers}`);
                                     console.log(`Peers   : ${response.peers && response.peers.length}`);
-                                    rl.close();
+
+                                    //connect peers
+
+                                    setupConnect(response.peers,decodedData);
+
                                 }).catch((err)=>{
                                     console.log(err);
                                 })
