@@ -1,11 +1,13 @@
 const net = require('net');
-const {rl,createInfoHash,getPeerId} = require('./utils');
+const {rl} = require('./utils');
+const builder = require('./msgBuilder');
+const checkType = require('./msgType');
+const handler = require('./handler');
 let connectedCount = 0;
-let message;
 
 const setupConnect = (peers) => {
     if(peers.length > 0){
-        peers.forEach(connectPeer)
+        peers.forEach(connectPeer);
     }
 }
 
@@ -13,7 +15,8 @@ const connectPeer = (peer) => {
     const socket = new net.Socket();
     
     socket.connect(peer.port,peer.ip,()=>{
-        sendHandshake(socket);
+        socket.write(builder.handshake());
+        //console.log(`Connected to ${peer.ip}:${peer.port}`);
     });
     
     socket.on('error',(err)=>{})
@@ -25,43 +28,70 @@ const connectPeer = (peer) => {
         }
     })
 
-    socket.on('data',(data)=>{
-       //if(data.length === data.readUInt8(0) + 49){
-           //if(data.slice(1,20).toString() === 'BitTorrent protocol'){
-                connectedCount++;
-                rl.write(`Connected Peers: ${connectedCount}\n`);
-                console.log(data.length);
-           //}
-       //}else {
-           //console.log(data.toString());
-       //}
+    getWholeMessage(socket,data=>{
+        if(checkType.isHandshake(builder.handshake(),data)){
+            socket.write(builder.intrested());
+        }else{
+            let msg = checkType.parseMsg(data);
+
+            switch(msg.id){
+                case 0 : handler.choke(socket); break;
+                case 1 : handler.unChoke(socket); break;
+                case 4 : handler.have(socket,msg); break;
+                case 5 : handler.bitfield(socket,msg);break;
+                case 7: handler.piece(socket,msg);break;
+            } 
+        }
+    });
+}
+
+const getWholeMessage = (socket,callback) => {
+    let prvsBuff = Buffer.alloc(0);
+    let handshake = true;
+    let msgLen;
+
+    socket.on('data',data=>{
+        if(prvsBuff.length === 0){
+            msgLen = handshake?68:data.readUInt32BE(0)+4;
+            if(data.length > msgLen){
+                prvsBuff = data.slice(msgLen);
+                if(handshake){
+                    handshake = false;
+                    connectedCount++;
+                }
+                callback(data.slice(0,msgLen));
+            }else if(data.length < msgLen){
+                prvsBuff.copy(data);
+            }else{
+                if(handshake){
+                    handshake = false;
+                    connectedCount++;
+                }
+                callback(data);
+            }
+
+        }else{
+            if(prvsBuff.length+data.length > msgLen){
+                if(handshake){
+                    handshake = false;
+                    connectedCount++;
+                }
+                callback(Buffer.concat([prvsBuff,data],msgLen));
+                prvsBuff = data.slice(msgLen-prvsBuff.length);
+            }else if(prvsBuff.length + data.length < msgLen){
+                prvsBuff = Buffer.concat([prvsBuff,data]);
+            }else{
+                if(handshake){
+                    handshake = false;
+                    connectedCount++;
+                }
+                callback(Buffer.concat([prvsBuff,data]));
+                prvsBuff = Buffer.alloc(0);
+            }
+        }
     })
 }
 
-
-const sendHandshake = (socket) => {
-    let message = generateHandshakeMsg();
-    socket.write(message);
-}
-
-const generateHandshakeMsg = () => {
-    if(!message){
-        let pstr = 'BitTorrent protocol';
-        let buff = Buffer.allocUnsafe(49+pstr.length);
-        let infoHash = createInfoHash();
-        let peerId = getPeerId();
-    
-        buff.writeUInt8(pstr.length,0);
-        buff.write(pstr,1,pstr.length);
-        buff.writeUInt32BE(0,pstr.length+1);
-        buff.writeUInt32BE(0,pstr.length+5);
-        infoHash.copy(buff,pstr.length+9);
-        peerId.copy(buff,pstr.length+9+infoHash.length);
-        
-        message = buff;
-        return message;        
-    }return message;
-}
 
 module.exports = {
     setupConnect

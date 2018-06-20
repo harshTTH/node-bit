@@ -70,7 +70,7 @@ fs.readFile(filePath,(err,data)=>{
                                     console.log(`Peers   : ${response.peers && response.peers.length}`);
 
                                     //connect peers
-
+                                    
                                     setupConnect(response.peers);
 
                                 }).catch((err)=>{
