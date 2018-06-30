@@ -1,6 +1,6 @@
 const {pieceHashes} = require('./decodeFile');
 const {download} = require('./download.js');
-const {findIndices} = require('./utils');
+const {findIndices,requested,received} = require('./utils');
 let peersPieces = [],rarePieces,unchokedCount = 0;
 let BIT8MAX = 255;
 
@@ -21,12 +21,11 @@ module.exports.unChoke = (socket) => {
     if(peer && peer.choke === undefined){
         peer.choke = false;
         unchokedCount++;
+        if(unchokedCount%3 === 0){
+            rarePieces = findRareIndexSet();
+        }
+        download(peersPieces,socket,rarePieces);
     }
-
-    if(unchokedCount%3 === 0){
-        rarePieces = findRareIndexSet();
-    }
-    download(peersPieces,socket,rarePieces);
 }
 
 module.exports.have = (socket,msg) => {
@@ -40,11 +39,11 @@ module.exports.bitfield = (socket,msg) => {
             payload:msg.payload
         });
     }
-
 }
 
 module.exports.piece = (socket,msg) => {
-    console.log(`\n\n\nPiece Received ${msg.payload.block}\n\n`);
+    let recievedPieceIndex = msg.payload.index; 
+    console.log(`Recieved Block : ${recievedPieceIndex} from ${socket.remoteAddress} of length ${msg.payload.block.length}`);
 }
 
 const findRareIndexSet = () => {

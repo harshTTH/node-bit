@@ -1,17 +1,24 @@
-let requested = [], recieved = [],rarePieces = [],  {pieceHashes} = require('./decodeFile');
+let {pieceHashes,pieceSize} = require('./decodeFile');
+let {requested,received} = require('./utils');
 const {findIndices} = require('./utils');
 const builder = require('./msgBuilder');
+const BLOCK_LENGTH = Math.pow(2,14);
 
-const download = (peersPieces,socket,rarePieces) => {
-    if(!isFinished(recieved,pieceHashes.length)){
+const download = (peersPieces,socket,rarePieces,i = 30) => {
+    if(!isFinished(received,pieceHashes.length)){
+        //const NO_OF_BLOCKS = Math.ceil(pieceSize[0]/BLOCK_LENGTH);
         let requestedIndex = selectPiece(peersPieces,socket,rarePieces);
-        requested.push(requestedIndex);
-        console.log(requested);
+        let blockIndex = i*BLOCK_LENGTH;
+
+        socket.write(builder.request(requestedIndex,blockIndex,BLOCK_LENGTH),()=>{
+            requested.push(requestedIndex);
+            console.log(`Requested Block Index ${blockIndex} of piece ${requestedIndex} to ${socket.remoteAddress}`);
+        })
     }
 }
 
-const isFinished = (recieved,pieces) => {
-    return recieved.length === pieces
+const isFinished = (received,pieces) => {
+    return received.length === pieces
 }
 
 const selectPiece = (peersPieces,socket,rarePieces) => {

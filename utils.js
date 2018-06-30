@@ -7,6 +7,7 @@ const crypto = require('crypto');
 const net = require('net');
 const {addRequests,requests,getRequest} = require('./requests');
 let infoHash,peerId;
+let requested = [], received = [];
 
 let loading,timeOutId = [];
 const LOADING_CHANGE_TIME = 500;
@@ -170,5 +171,7 @@ module.exports = {
     createInfoHash,
     getPeerId,
     getWorkingTracker,
-    findIndices
+    findIndices,
+    requested,
+    received
 }
