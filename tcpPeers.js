@@ -47,15 +47,18 @@ const getWholeMessage = (socket,callback) => {
     socket.on('data',data=>{
         if(!(data.length > 4))return;
         if(prvsBuff.length === 0){
+
             msgLen = handshake?68:data.readUInt32BE(0)+4;
+            
             if(data.length > msgLen){
                 prvsBuff = data.slice(msgLen);
                 if(handshake){
                     handshake = false;
                 }
                 callback(data.slice(0,msgLen));
+                return;
             }else if(data.length < msgLen){
-                prvsBuff.copy(data);
+                prvsBuff = Buffer.concat([data,prvsBuff]);
             }else{
                 if(handshake){
                     handshake = false;
@@ -65,12 +68,15 @@ const getWholeMessage = (socket,callback) => {
 
         }else{
             msgLen = prvsBuff.readUInt32BE(0)+4;
+            
             if(prvsBuff.length+data.length > msgLen){
                 if(handshake){
                     handshake = false;
                 }
-                callback(Buffer.concat([prvsBuff,data],msgLen));
+                let temp = data.slice(0,msgLen-prvsBuff.length);
+                callback(Buffer.concat([prvsBuff,temp],msgLen));
                 prvsBuff = data.slice(msgLen-prvsBuff.length);
+                return;
             }else if(prvsBuff.length + data.length < msgLen){
                 prvsBuff = Buffer.concat([prvsBuff,data]);
             }else{
@@ -81,6 +87,7 @@ const getWholeMessage = (socket,callback) => {
                 prvsBuff = Buffer.alloc(0);
             }
         }
+        
     })
 }
 
