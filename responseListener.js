@@ -4,7 +4,7 @@ const {removeRequests} = require('./requests');
 
 const responseListener = (message,decodedData,url) => {
     
-    return new Promise((resolve)=>{
+    return new Promise((resolve,reject)=>{
         socket.on('message',(response)=>{
             let parsedResponse;
             if(response.length === 16){

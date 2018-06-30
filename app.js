@@ -23,7 +23,8 @@ fs.readFile(filePath,(err,data)=>{
     else{
         let decodedData = decodeFile(data);
         let readableData = getReadableData(decodedData);
-
+    
+        //console.log(decodedData);
 
         if(!decodedData)
             rl.write("\nInvalid File !\n");
@@ -52,7 +53,7 @@ fs.readFile(filePath,(err,data)=>{
 
                                 //connecting peers
                                 
-                                setupConnect(response.peers);
+                                setupConnect(response.peers,readableData.pieceHash);
                                 
                             })
                             .catch(handleReqFailure)
@@ -71,7 +72,7 @@ fs.readFile(filePath,(err,data)=>{
 
                                     //connect peers
                                     
-                                    setupConnect(response.peers);
+                                    setupConnect(response.peers,readableData.pieceHash);
 
                                 }).catch((err)=>{
                                     console.log(err);

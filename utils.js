@@ -148,6 +148,16 @@ async function getWorkingTracker(torrent){
     }else return torrent.announce;
 }
 
+const findIndices = (difference,i) => {
+    let indices = [];
+    while(difference){
+        let index = Math.floor(Math.log2(difference));
+        indices.push(8*i + (7-index));
+        difference-=Math.pow(2,index);
+    }
+    return indices;
+}
+
 module.exports = {
     udpSend,
     rl,
@@ -160,4 +170,5 @@ module.exports = {
     createInfoHash,
     getPeerId,
     getWorkingTracker,
+    findIndices
 }

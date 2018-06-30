@@ -1,5 +1,5 @@
 const bencode = require('bencode');
-
+let pieceHashes = [];
 const decodeFile = (data) => {
     try{
         let decodedData = bencode.decode(data);
@@ -17,6 +17,10 @@ const decodeFile = (data) => {
 }
 
 const getReadableData = (decodedData)=> {
+    for(let i = 0;i< decodedData.info.pieces.length; i+=20){
+        pieceHashes.push(decodedData.info.pieces.slice(i));
+    }
+
     return {
         name:decodedData.info.name && decodedData.info.name.toString(),
         announce:decodedData.announce.toString(),
@@ -43,5 +47,6 @@ const fixMagnitude = (length) => {
 
 module.exports = {
     decodeFile,
-    getReadableData
+    getReadableData,
+    pieceHashes
 }
