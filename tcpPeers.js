@@ -5,6 +5,7 @@ const checkType = require('./msgType');
 const handler = require('./handler');
 
 const setupConnect = (peers) => {
+    rl.write('\nDownloading :- \n');
     if(peers.length > 0){
         peers.forEach(connectPeer);
     }
@@ -14,6 +15,7 @@ const connectPeer = (peer) => {
     const socket = new net.Socket();
 
     socket.connect(peer.port,peer.ip,()=>{
+        socket.pieceData = Buffer.alloc(0);
         socket.write(builder.handshake());
     });
     

@@ -52,7 +52,6 @@ fs.readFile(filePath,(err,data)=>{
                                 console.log(`Peers   : ${response.peers && response.peers.length}`);
 
                                 //connecting peers
-                                
                                 setupConnect(response.peers,readableData.pieceHash);
                                 
                             })

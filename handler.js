@@ -1,8 +1,10 @@
-const {pieceHashes} = require('./decodeFile');
+const {pieceHashes,pieceSize,fileSize,fileName} = require('./decodeFile');
 const {download} = require('./download.js');
-const {findIndices,requested,received} = require('./utils');
+const {findIndices,requested,received,rl} = require('./utils');
+const {writePiece} = require('./downContent');
+const BIT8MAX = 255;
+const BLOCK_LENGTH = Math.pow(2,14);
 let peersPieces = [],rarePieces,unchokedCount = 0;
-let BIT8MAX = 255;
 
 module.exports.choke = (socket) => {
     socket.destroy();
@@ -24,7 +26,7 @@ module.exports.unChoke = (socket) => {
         if(unchokedCount%3 === 0){
             rarePieces = findRareIndexSet();
         }
-        download(peersPieces,socket,rarePieces);
+        download(peersPieces,socket,rarePieces,BLOCK_LENGTH,0);
     }
 }
 
@@ -42,8 +44,53 @@ module.exports.bitfield = (socket,msg) => {
 }
 
 module.exports.piece = (socket,msg) => {
-    let recievedPieceIndex = msg.payload.index; 
-    console.log(`Recieved Block : ${recievedPieceIndex} from ${socket.remoteAddress} of length ${msg.payload.block.length}`);
+    const block = msg.payload.block;
+    socket.pieceData = Buffer.concat([socket.pieceData,block]);
+    let receivedPieceIndex = msg.payload.index;
+    let receivedBlockIndex = msg.payload.begin; 
+    let BLOCK_LENGTH = block.length;
+    
+    //console.log(`Block of length ${BLOCK_LENGTH} of offset ${receivedBlockIndex} of Piece ${receivedPieceIndex}`)
+
+    if(receivedBlockIndex+BLOCK_LENGTH < pieceSize[0]){
+
+        download(peersPieces,socket,rarePieces,BLOCK_LENGTH,receivedBlockIndex+BLOCK_LENGTH);
+
+    }else if(receivedBlockIndex+BLOCK_LENGTH === pieceSize[0]){
+
+        let pieceData = socket.pieceData;
+        if(writePiece(fileName[0],pieceData,receivedPieceIndex,pieceSize[0]) === false){
+            console.log('Failed to write');
+        }else{
+            received.push(receivedPieceIndex);
+            let percentage = ((received.length/pieceHashes.length)*100).toPrecision(2);
+            
+            process.stdout.clearLine();
+            process.stdout.cursorTo(0);
+            process.stdout.write(percentage+' %');    
+        }
+        socket.pieceData = Buffer.alloc(0);
+        if(received.length !== pieceHashes.length && requested.length !== received.length)
+            download(peersPieces,socket,rarePieces,BLOCK_LENGTH,0);
+        else{
+            peersPieces.forEach(peer=>{
+                peer.socket.destroy();
+            })
+            rl.write('\nFile Downloaded Successfully \n')
+            rl.close();
+        }
+
+    }else{
+        
+        let dPieceSize;
+        if(receivedPieceIndex === pieceHashes.length-1)
+            dPieceSize = fileSize[0] - (pieceSize[0]*(pieceHashes.length-1));
+        else dPieceSize = pieceSize[0]; 
+
+        BLOCK_LENGTH = dPieceSize % BLOCK_LENGTH;
+        download(peersPieces,socket,rarePieces,BLOCK_LENGTH,receivedBlockIndex+BLOCK_LENGTH);
+    }
+
 }
 
 const findRareIndexSet = () => {

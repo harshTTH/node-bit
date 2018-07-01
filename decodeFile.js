@@ -1,6 +1,6 @@
 const bencode = require('bencode');
 let pieceHashes = [];
-let pieceSize = [];
+let pieceSize = [],fileSize = [], fileName = [];
 
 const decodeFile = (data) => {
     try{
@@ -11,6 +11,7 @@ const decodeFile = (data) => {
                 return prvs + next;
             })
         }else decodedData.length = decodedData.info.length;
+        fileSize.push(decodedData.length);
         return decodedData;
     }catch(error){
         console.error(error);
@@ -19,13 +20,16 @@ const decodeFile = (data) => {
 }
 
 const getReadableData = (decodedData)=> {
+    const name = decodedData.info.name && decodedData.info.name.toString();
+
     for(let i = 0;i< decodedData.info.pieces.length; i+=20){
         pieceHashes.push(decodedData.info.pieces.slice(i));
     }
     pieceSize.push(decodedData.info['piece length']);
+    fileName.push(name)
 
     return {
-        name:decodedData.info.name && decodedData.info.name.toString(),
+        name,
         announce:decodedData.announce.toString(),
 
         'announce-list':decodedData['announce-list'] && decodedData['announce-list'].map(announce=>announce[0].toString()),
@@ -52,5 +56,7 @@ module.exports = {
     decodeFile,
     getReadableData,
     pieceHashes,
-    pieceSize
+    pieceSize,
+    fileSize,
+    fileName
 }
